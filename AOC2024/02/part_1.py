@@ -1,4 +1,4 @@
-import math, os
+import os
 
 reports = []
 input_path = os.path.join(os.path.dirname(__file__), 'input.txt')
