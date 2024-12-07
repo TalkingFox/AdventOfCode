@@ -1,5 +1,5 @@
 import os
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Dict
 from enum import Enum
 
 
@@ -34,6 +34,10 @@ class DirectedVector2(Vector2):
     def __init__(self, x: int, y: int, direction: GuardDirection):
         super().__init__(x, y)
         self.direction = direction
+    
+    @staticmethod
+    def copy(directed_vector):
+        return DirectedVector2(directed_vector.x, directed_vector.y, directed_vector.direction)
 
     def add(self, other):
         return DirectedVector2(self.x + other.x, self.y + other.y, self.direction)
@@ -100,10 +104,10 @@ def evaluate_guard_patrol(
 ) -> Tuple[bool, List[DirectedVector2]]:
 
     guard_position = DirectedVector2(starting_position.x, starting_position.y, starting_position.direction)
-    unique_positions = set([guard_position])
+    unique_positions: Set[int] = set()
     
     visited_positions: List[DirectedVector2] = []
-    visited_positions.append(guard_position)
+    visited_positions.append(DirectedVector2.copy(guard_position))
 
     # simulate guard movement
     while True:
@@ -116,21 +120,26 @@ def evaluate_guard_patrol(
             break
         
         # check for obstacle
-        # this will need to change if obstacle still exists after a turn
-        if grid[target_position.y][target_position.x] == "#":
+        rotate_count = 0
+        while grid[target_position.y][target_position.x] == "#":
+            rotate_count += 1
+            if rotate_count == 4:
+                return False, visited_positions
             target_position.direction = direction_after_turning[target_position.direction]
             guard_position.direction = target_position.direction
             increment = increment_by_direction[target_position.direction]
             target_position = guard_position.add(increment)
 
         guard_position = target_position
-        visited_positions.append(guard_position)
+        visited_positions.append(target_position)
         
         # if the guard enters the same position from the same direction twice, they are looping
-        if guard_position in unique_positions:
+        # Not entirely sure why adding the classes directly to unique_positions wasn't working.
+        # Need to better understand Python scope, I think.
+        if guard_position.__hash__() in unique_positions:
             return False, visited_positions
         
-        unique_positions.add(guard_position)
+        unique_positions.add(target_position.__hash__())
 
     return True, visited_positions
 
@@ -144,9 +153,12 @@ print(f"Guard visits {len(unique_positions)} unique locations. PathCompletes? {r
 
 obstacle_count = 0
 # brute-force approach. Place an obstacle on each visited location.
+# Can obtain substantial performance improvements by skipping chunks of positions where an obstacle will cause the guard to veer off the map.
 # If there are any cycles in the approach (identified as a repeating sequence of visited positions), save it.
 counter = 0
 for position in unique_positions:
+    if counter % 100 == 0:
+        print(counter)
     if position.x == guard_position.x and position.y == guard_position.y:
         continue
     starting_position = DirectedVector2(guard_position.x, guard_position.y, guard_position.direction)
@@ -154,7 +166,7 @@ for position in unique_positions:
     clone_grid[position.y] = clone_grid[position.y][:position.x] + '#' + clone_grid[position.y][position.x+1:]
     route_completes, patrol_route = evaluate_guard_patrol(clone_grid, starting_position)
     if not route_completes:
-        print(f'{position.x},{position.y}')
+        # print(f'{position.x},{position.y}')
         obstacle_count += 1
     counter += 1
         
