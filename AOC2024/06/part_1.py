@@ -12,7 +12,7 @@ class Vector2(object):
         return hasattr(other, 'x') and hasattr(other, 'y') and self.x == other.x and self.y == other.y
     
     def __hash__(self):
-        return hash(str(self.x) + str(self.y))
+        return hash((self.x, self.y))
     
     def add(self, other):
         return Vector2(self.x + other.x, self.y + other.y)
@@ -40,14 +40,14 @@ with open(input_path, "r") as in_file:
     lines = in_file.readlines()
     for row, line in enumerate(lines):
         grid.append(line.strip())
+        if guard_position != None:
+            continue
+        
         for column, character in enumerate(line):
             if character in guard_direction_by_character:
                 guard_position = Vector2(column, row)
                 current_direction = guard_direction_by_character[character]
                 break
-
-        if guard_position != None:
-            break
         
 # Simulate guard movement until exiting the map.
 # Count the unique squares the guard visits
@@ -73,18 +73,18 @@ while True:
     target_position = guard_position.add(increment)
     
     # assuming a fixed width grid
-    is_target_on_map = 0 <= target_position.x < len(lines[0]) and 0 <= target_position.y < len(lines)
+    is_target_on_map = 0 <= target_position.x < len(grid[0]) and 0 <= target_position.y < len(grid)
     if not is_target_on_map:
         break
     
     # check for obstacle
     # this will need to change if obstacle still exists after a turn
-    if lines[target_position.y][target_position.x] == '#':
+    if grid[target_position.y][target_position.x] == '#':
         current_direction = direction_after_turning[current_direction]
         increment = increment_by_direction[current_direction]
         target_position = guard_position.add(increment)
     
-    guard_position =  target_position
+    guard_position = target_position
     visited_locations.add(guard_position)
 
 print(f'Guard visited {len(visited_locations)} unique locations.')
