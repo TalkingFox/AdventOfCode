@@ -73,8 +73,8 @@ print(f"Map Size: height={map_height} width={map_width}")
 
 # generate antinodes by:
 # 1. Finding the distance between each like antenna
-# 2. Recording one antinode that distance away from the other node
-# 3. And Recording one antinode double the distance toward the other node
+# 2. Recording all antinodes that distance away from the other node until the map ends.
+# 3. And recording all antinodes that distance toward the other node starting two distance units from the source antenna
 antinode_positions: List[Vector2] = []
 for id, entries in antennae.items():
     for source_index, source_entry in enumerate(entries):
@@ -85,14 +85,32 @@ for id, entries in antennae.items():
         for target_entry in entries[source_index + 1 :]:
             distance = target_entry.position.subtract(source_entry.position)
 
-            close_antinode = source_entry.position.add(distance.multiply(-1))
-            if 0 <= close_antinode.x < map_width and 0 <= close_antinode.y < map_height:
-                antinode_positions.append(close_antinode)
-
-            far_antinode = source_entry.position.add(distance.multiply(2))
-            if 0 <= far_antinode.x < map_width and 0 <= far_antinode.y < map_height:
-                antinode_positions.append(far_antinode)
+            start_antinode = source_entry.position.multiply(1)
+            antinode_positions.append(start_antinode)
+            
+            away_direction = distance.multiply(-1)
+            target_antinode_position = source_entry.position.add(away_direction)
+            while 0 <= target_antinode_position.x < map_width and 0 <= target_antinode_position.y < map_height:
+                antinode_positions.append(target_antinode_position)
+                target_antinode_position = target_antinode_position.add(away_direction)
+            
+            target_antinode_position = source_entry.position.add(distance)
+            while 0 <= target_antinode_position.x < map_width and 0 <= target_antinode_position.y < map_height:                
+                antinode_positions.append(target_antinode_position)
+                target_antinode_position = target_antinode_position.add(distance)
+            
 
 print(f"Found {len(antinode_positions)} total antinodes")
+# grid: List[List[str]] = []
+# for i in range(map_height):
+#     row = ['.']  * map_width
+#     grid.append(row)
+
+# for position in antinode_positions:
+    # print(position)
+    # grid[position.y][position.x] = '#'
+
+# print(grid)
+        
 unique_positions = set(antinode_positions)
 print(f'Found {len(unique_positions)} unique antinode positions')
