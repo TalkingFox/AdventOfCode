@@ -1,8 +1,14 @@
+from enum import Enum
 import os, json
-from typing import List, Set
+from typing import Dict, List, Set
 
 input_path = os.path.join(os.path.dirname(__file__), "input.txt")
 
+class Direction(Enum):
+    NORTH = 1,
+    EAST = 2
+    SOUTH = 3
+    WEST = 4    
 
 class Point(object):
     def __init__(self, x: int, y: int):
@@ -11,6 +17,29 @@ class Point(object):
 
     def __str__(self) -> str:
         return f"({self.x},{self.y})"
+
+    def subtract(self, other_point):
+        return Point(self.x - other_point.x, self.y - other_point.y)
+
+class Wall(object):
+    def __init__(self, direction: Direction, start_point: Point):
+        self.direction = direction
+        self.points: List[Point] = [start_point]
+    
+    def add_point(self, point: Point):
+        self.points.append(point)
+        
+    def is_point_contiguous(self, new_point: Point) -> bool:
+        for point in self.points:
+            point_difference = point.subtract(new_point)
+            if self.direction == Direction.NORTH or self.direction == Direction.SOUTH:
+                if point_difference.y == 0 and abs(point_difference.x) == 1:
+                    return True
+            
+            if self.direction == Direction.EAST or self.direction == Direction.WEST:
+                if point_difference.x == 0 and abs(point_difference.y) == 1:
+                    return True
+        
 
 class Region(object):
     def __init__(self, width: int, height: int):
@@ -49,6 +78,57 @@ class Region(object):
                         total_perimeter += 1
         
         return total_perimeter
+
+    def count_sides(self) -> int:
+        # collect lists of contiguous direction-facing walls
+        wall_fragments_by_direction: Dict[Direction, List[Wall]] = {
+            Direction.NORTH: [],
+            Direction.EAST: [],
+            Direction.SOUTH: [],
+            Direction.WEST: []
+        }
+        for row_index, row in enumerate(self.grid):
+            for column, character in enumerate(row):
+                if character == '#':
+                    continue
+                
+                current_point = Point(column, row_index)
+                # check north
+                if row_index <= 0 or self.grid[row_index-1][column] == '#':
+                    fragment = Wall(Direction.NORTH, current_point)
+                    wall_fragments_by_direction[Direction.NORTH].append(fragment)
+                
+                # check east
+                if column >= len(self.grid[row_index])-1 or self.grid[row_index][column+1] == '#':
+                    fragment = Wall(Direction.EAST, current_point)
+                    wall_fragments_by_direction[Direction.EAST].append(fragment)
+                
+                # check south
+                if row_index >= len(self.grid)-1 or self.grid[row_index+1][column] == '#':
+                    fragment = Wall(Direction.SOUTH, current_point)
+                    wall_fragments_by_direction[Direction.SOUTH].append(fragment)
+                
+                # check west
+                if column <= 0 or self.grid[row_index][column-1] == '#':
+                    fragment = Wall(Direction.WEST, current_point)
+                    wall_fragments_by_direction[Direction.WEST].append(fragment)
+        
+        for direction, fragments in wall_fragments_by_direction.items():
+            source_index = 0
+            while source_index < len(fragments):
+                source_fragment = fragments[source_index]
+                compare_index = source_index+1
+                while compare_index < len(fragments):
+                    compare_fragment = fragments[compare_index]
+                    # don't ever forget that at this point each wall only has one point.
+                    if source_fragment.is_point_contiguous(compare_fragment.points[0]):
+                        source_fragment.add_point(compare_fragment.points[0])
+                        del fragments[compare_index]
+                    else:
+                        compare_index += 1
+                source_index += 1
+        total_sides = sum(len(fragments) for fragments in wall_fragments_by_direction.values())
+        return total_sides
 
 
 grid: List[List[str]] = []
@@ -116,13 +196,12 @@ printables = []
 total_cost = 0
 for region in regions:
     area = region.area
-    perimiter = region.calculate_perimiter()
+    sides = region.count_sides()
     # printables.append({
     #     'area': area,
-    #     'perimeter': perimiter,
+    #     'sides': sides,
     # })
-    # print(str(region))
-    total_cost += (area * perimiter)
+    total_cost += (area * sides)
     
 # print(json.dumps(printables))
 print(f'Total fencing costs: {total_cost}')
