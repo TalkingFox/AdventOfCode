@@ -111,23 +111,26 @@ with open(input_path, "r") as in_file:
         active_row = []
 
 
-# breadth-first search to find the lowest-scoring past to the endpoint
+# breadth-first search to find the lowest-scoring paths to the endpoint
 # depth-first search allows us to pre-emptively exit all poor scoring paths as soon as an optimal path is found.
-def evaluate_path(grid: List[List[str]],
+def evaluate_paths(grid: List[List[str]],
     first_step: Step,
-) -> Route:
+) -> List[Route]:
 
     start_route = Route()
     start_route.add(first_step)
     route_queue: List[Route] = [start_route]
-    best_route: Route = None
+    best_routes: List[Route] = []
+    best_score: int = None
     explored_points_by_score: Dict[str, int] = {first_step.point: 0}
     while any(route_queue):
         root_route = route_queue.pop(0)
+        if str(root_route.steps[-1].point) == '(4,7)':
+            a = '123'
         # prune impossibly worse routes
-        if best_route != None and root_route.score >= best_route.score:
+        if best_score != None and root_route.score > best_score:
             continue
-            
+        
         # generate 3 possible next steps
         # 1 step forward (1 point)
         forward_step = root_route.steps[-1].move_forward()
@@ -136,20 +139,25 @@ def evaluate_path(grid: List[List[str]],
         if step_char == "E":
             forward_route = Route(root_route)
             forward_route.add(forward_step)
-            if best_route == None:
-                best_route = forward_route
-            elif forward_route.score < best_route.score:
-                best_route = forward_route
-            # don't generate sibling nodes. They won't be better.
+            if best_score == None:
+                best_routes.append(forward_route)
+                best_score = forward_route.score
+            elif forward_route.score <= best_score:
+                best_routes.append(forward_route)
+                best_score = min(best_score, forward_route.score)
+            # don't generate sibling nodes. They won't be equal or better.
             continue
         else:
             if not root_route.has_visited(forward_step.point) and step_char == '.':
                 forward_route = Route(root_route)
                 forward_route.add(forward_step)
                 point_key = str(forward_step.point)
-                if point_key not in explored_points_by_score or explored_points_by_score[point_key] >= forward_route.score:
+                if point_key not in explored_points_by_score or (explored_points_by_score[point_key] + 1001) >= forward_route.score:
                     # assumption: If one square has already been explored with a better score than you, your route is sub-optimal.
-                    explored_points_by_score[point_key] = forward_route.score
+                    if point_key not in explored_points_by_score:
+                        explored_points_by_score[point_key] = forward_route.score
+                    else:
+                        explored_points_by_score[point_key] = min(forward_route.score, explored_points_by_score[point_key])
                     route_queue.append(forward_route)
                 
         # You will never rotate twice in a row.
@@ -168,7 +176,7 @@ def evaluate_path(grid: List[List[str]],
             rotation_route.add(rotation)
             route_queue.append(rotation_route)
             
-    return best_route
+    return list(filter(lambda x: x.score <= best_score,best_routes))
 
 
 def draw_solved_map(grid: List[List[str]], route: Route) -> None:
@@ -190,5 +198,13 @@ def draw_solved_map(grid: List[List[str]], route: Route) -> None:
     print(f"Path score: {route.score}")
 
 
-path = evaluate_path(grid, start_step)
-draw_solved_map(grid, path)
+paths = evaluate_paths(grid, start_step)
+print(f'{len(paths)} optimal paths found.')
+# for path in paths:
+#     draw_solved_map(grid, path)
+optimal_path_points = set()
+for path in paths:
+    for step in path.steps:
+        optimal_path_points.add(str(step.point))
+        
+print(f'{len(optimal_path_points)} tiles touched by an optimal path.')
