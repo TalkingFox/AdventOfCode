@@ -1,6 +1,6 @@
 from enum import Enum
 import os, sys
-from typing import Dict, List
+from typing import Dict, List, Set
 
 sys.setrecursionlimit(10000)
 
@@ -65,11 +65,30 @@ class Step(object):
     def mark_finished(self) -> None:
         self.is_finished = True
 
+class Route(object):
+    def __init__(self, route = None):
+        self.__visited_points__: Set[str] = set()
+        self.steps: List[Step] = []
+        self.score = 0
+        if route:
+            self.steps.extend(route.steps)
+            self.score = route.score
+            self.__visited_points__ = set(route.__visited_points__)
+    
+    def add(self, step: Step) -> None:
+        self.steps.append(step)
+        self.score += step.cost
+    
+    def has_visited(self, point: Point) -> bool:
+        return str(point) in self.__visited_points__
+    
+    def just_rotated(self) -> bool:
+        return len(self.steps) > 1 and self.steps[-1].point.equal(self.steps[-2].point)
+    
 
 def print_map(source: List[List[str]]) -> None:
     for row in source:
         print("".join(row))
-
 
 start_position: Step = None
 grid: List[List[str]] = []
@@ -93,80 +112,67 @@ with open(input_path, "r") as in_file:
         active_row = []
 
 
-# depth-first search to find the lowest-scoring past to the endpoint
-# depth-first search allows us to pre-emptively exit poor scoring paths if an optimal path is found first.
-def evaluate_path(
-    grid: List[List[str]],
-    start: Step,
-    current_path: List[Step],
-    visited_points: set[Point],
-    best_score: int = None,
-) -> List[Step]:
+# breadth-first search to find the lowest-scoring past to the endpoint
+# depth-first search allows us to pre-emptively exit all poor scoring paths as soon as an optimal path is found.
+def evaluate_path(grid: List[List[str]],
+    first_step: Step,
+) -> Route:
 
-    start_fork = list(current_path)
-    start_fork.append(start)
-    visited_fork = set(visited_points)
-    visited_fork.add(str(start.point))
-
-    # short-circuit known-worst paths
-    if best_score != None and sum(map(lambda x: x.cost, start_fork)) >= best_score:
-        return []
-
-    # generate 5 possible next steps
-    # 1 step forward (1 point)
-    # 2 clockwise rotations (1000 points)
-    # 2 counter-clockwise rotations (1000 points)
-    forward_step = start.move_forward()
-    step_char = grid[forward_step.point.y][forward_step.point.x]
-    if step_char == "E":
-        # don't bother checking other sibling points if the endpoint was found. They can't offer a better path.
-        forward_step.mark_finished()
-        start_fork.append(forward_step)
-        visited_fork.add(str(forward_step.point))
-        return start_fork
-
-    best_route: List[Step] = []
-
-    if step_char != "#" and str(forward_step.point) not in visited_fork:
-        step_evaluation = evaluate_path(
-            grid, forward_step, start_fork, visited_fork, best_score
-        )
-        if any(step_evaluation) and step_evaluation[-1].is_finished:
-            step_score = sum(map(lambda x: x.cost, step_evaluation))
-            if best_score == None or step_score < best_score:
-                best_score = step_score
-                best_route = step_evaluation
-
-    # if last two steps were in the same place, do not generate rotations.
-    # this implies a step of (1) - Landing on the square (2) - Rotating.
-    # You will never need to rotate more than once.
-    if len(start_fork) > 1 and start_fork[-1].point.equal(start_fork[-2].point):
-        return best_route
-
-    # note: for root node, it may be worth allowing the user to rotate a second time.
-    # not currently implemented
-    rotations = [
-        start.clockwise_rotate(),
-        start.counter_clockwise_rotate(),
-    ]
-    
-    for rotation in rotations:
-        rotation_evaluation = evaluate_path(
-            grid, rotation, start_fork, visited_fork, best_score
-        )
-        if not any(rotation_evaluation):
+    start_route = Route()
+    start_route.add(first_step)
+    route_queue: List[Route] = [start_route]
+    best_route: Route = None
+    explored_points_by_score: Dict[str, int] = {first_step.point: 0}
+    while any(route_queue):
+        root_route = route_queue.pop(0)
+        # prune impossibly worse routes
+        if best_route != None and root_route.score >= best_route.score:
             continue
-        if not rotation_evaluation[-1].is_finished:
+            
+        # generate 3 possible next steps
+        # 1 step forward (1 point)
+        forward_step = root_route.steps[-1].move_forward()
+        
+        step_char = grid[forward_step.point.y][forward_step.point.x]
+        if step_char == "E":
+            forward_route = Route(root_route)
+            forward_route.add(forward_step)
+            if best_route == None:
+                best_route = forward_route
+            elif forward_route.score < best_route.score:
+                best_route = forward_route
+            # don't generate sibling nodes. They won't be better.
             continue
-        rotation_score = sum(map(lambda x: x.cost, rotation_evaluation))
-        if best_score == None or rotation_score < best_score:
-            best_score = rotation_score
-            best_route = rotation_evaluation
-
+        else:
+            if not root_route.has_visited(forward_step.point) and step_char == '.':
+                forward_route = Route(root_route)
+                forward_route.add(forward_step)
+                point_key = str(forward_step.point)
+                if point_key not in explored_points_by_score or explored_points_by_score[point_key] >= forward_route.score:
+                    # assumption: If one square has already been explored with a better score than you, your route is sub-optimal.
+                    explored_points_by_score[point_key] = forward_route.score
+                    route_queue.append(forward_route)
+                
+        # You will never rotate twice in a row.
+        if root_route.just_rotated():
+            continue
+        
+        # generate rotations
+        # 1 clockwise rotations (1000 points)
+        # 1 counter-clockwise rotations (1000 points)
+        rotations = [
+            root_route.steps[-1].clockwise_rotate(),
+            root_route.steps[-1].counter_clockwise_rotate()
+        ]
+        for rotation in rotations:
+            rotation_route = Route(root_route)
+            rotation_route.add(rotation)
+            route_queue.append(rotation_route)
+            
     return best_route
 
 
-def draw_solved_map(grid: List[List[str]], steps: List[Step]) -> None:
+def draw_solved_map(grid: List[List[str]], route: Route) -> None:
     characters_by_direction = {
         Direction.NORTH: "^",
         Direction.EAST: ">",
@@ -174,17 +180,16 @@ def draw_solved_map(grid: List[List[str]], steps: List[Step]) -> None:
         Direction.WEST: "<",
     }
     copy_grid = [row[:] for row in grid]
-    for step in steps[:-1]:
-        if step.point.equal(steps[0].point):
+    for step in route.steps[:-1]:
+        if step.point.equal(route.steps[0].point):
             continue
         step_char = characters_by_direction[step.direction]
         copy_grid[step.point.y][step.point.x] = step_char
 
     for row in copy_grid:
         print(f'{"".join(row)}')
-    score = sum(map(lambda x: x.cost, steps))
-    print(f'Path score: {score}')
+    print(f"Path score: {route.score}")
 
 
-path = evaluate_path(grid, start_step, [], set())
+path = evaluate_path(grid, start_step)
 draw_solved_map(grid, path)
