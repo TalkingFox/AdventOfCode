@@ -20,9 +20,12 @@ class Machine(object):
         return list(self.__output__)
 
     def find_quine_for_register_a(self) -> int:
-        a_value = 0
+        start_value = pow(8,16)
+        record_length = 0
+        a_value = start_value
         self.a = a_value
         is_quine_found = False
+        program_length = len(self.program)
         while not is_quine_found:
             is_quine_possible = True
             while self.instruction_index < len(self.program):
@@ -35,8 +38,9 @@ class Machine(object):
                         break
                 if not is_quine_possible:
                     break
-                if len(self.__output__) > 0:
-                    print(a_value)
+                if len(self.__output__) > record_length:
+                    record_length = len(self.__output__)
+                    print(f'New Record: {a_value} returned output with {len(self.__output__)} matching characters')
             if self.__output__ == self.program:
                 is_quine_found = True
             else:
