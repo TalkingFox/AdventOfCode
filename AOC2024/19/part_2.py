@@ -30,7 +30,32 @@ for pattern in available_patterns:
     patterns_by_starting_color[start_color].append(pattern)
 
 
-arrangements_by_substring: Dict[str, int] = {}
+arrangements_by_substring: Dict[str, List[List[str]]] = {}
+
+
+def get_possible_arrangements(design: str) -> List[List[str]]:
+    if design in arrangements_by_substring:
+        return [arragements[:] for arragements in arrangements_by_substring[design]]
+
+    char = design[0]
+    completed_arrangements: List[List[str]] = []
+    if char not in patterns_by_starting_color:
+        arrangements_by_substring[design] = completed_arrangements
+        return completed_arrangements
+    matches = patterns_by_starting_color[char]
+    for match in matches:
+        if not design.startswith(match):
+            continue
+        if match == design:
+            completed_arrangements.append([match])
+            continue
+        for arrangement in get_possible_arrangements(design[len(match) :]):
+            arrangement.insert(0, match)
+            completed_arrangements.append(arrangement)
+
+    arrangements_by_substring[design] = [x[:] for x in completed_arrangements]
+    return completed_arrangements
+
 
 def count_possible_arrangements(design: str) -> int:
     if design in arrangements_by_substring:
@@ -48,8 +73,7 @@ def count_possible_arrangements(design: str) -> int:
         if match == design:
             completed_arrangements += 1
             continue
-        arrangements_from_here = count_possible_arrangements(design[len(match):])
-        completed_arrangements += arrangements_from_here
+        completed_arrangements += count_possible_arrangements(design[len(match) :])
 
     arrangements_by_substring[design] = completed_arrangements
     return completed_arrangements
@@ -60,6 +84,7 @@ for index, design in enumerate(requested_designs):
     root_node = Node([])
     arrangements = count_possible_arrangements(design)
     possible_arrangements += arrangements
+    # possible_arrangements += len(arrangements)
     print(arrangements)
 
 print(f"{possible_arrangements} arrangements are possible.")
