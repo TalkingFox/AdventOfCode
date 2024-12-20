@@ -41,7 +41,6 @@ class Route(object):
         self.points = points
         self.has_teleported = False
         self.total_time = len(self.points) - 1
-        self.__visited_points__ = set(map(lambda x: str(x), points))
 
     @staticmethod
     def from_route(route):
@@ -55,10 +54,9 @@ class Route(object):
         self.points.append(point)
         if point.is_teleport_start:
             self.has_teleported = True
-        self.__visited_points__.add(str(point))
 
     def has_visited(self, point: CheatPoint) -> bool:
-        return str(point) in self.__visited_points__
+        return any(map(lambda x: x.x == point.x and x.y == point.y, self.points))
 
 
 grid: List[List[str]] = []
@@ -112,15 +110,14 @@ def find_race_time(map: List[List[str]]) -> int:
 
 def find_standard_route(map: List[List[str]], start: Point) -> Route | None:
     root: Route = Route([CheatPoint.from_point(start)])
-    queue: List[Route] = [root]
     increments = [Point(0, -1), Point(1, 0), Point(0, 1), Point(-1, 0)]
     visited_points: Set[str] = set()
+    visited_points.add(str(start))
 
-    while any(queue):
-        node = queue.pop(0)
-        visited_points.add(str(node.points[-1]))
+    while True:
+        did_move = False
         for increment in increments:
-            next_step = node.points[-1].add(increment)
+            next_step = root.points[-1].add(increment)
             if next_step.x < 0 or next_step.y < 0:
                 continue
             if next_step.y >= len(map) or next_step.x >= len(map[next_step.y]):
@@ -132,15 +129,16 @@ def find_standard_route(map: List[List[str]], start: Point) -> Route | None:
             if step_char == "#":
                 continue
             if step_char == "E":
-                node.add_point(next_step)
-                return node
+                root.add_point(next_step)
+                return root
 
-            next_points = list(node.points)
-            next_points.append(next_step)
-            next_node = Route(next_points)
-            queue.append(next_node)
+            root.add_point(next_step)
+            visited_points.add(str(next_step))
+            did_move = True
+            break
 
-    return None
+        if not did_move:
+            return None
 
 
 def find_time_saving_routes(
@@ -165,7 +163,7 @@ def find_time_saving_routes(
         node = queue.pop(0)
         if node.total_time >= required_time:
             continue
-        
+
         for increment in increments:
             next_step = node.points[-1].add(increment)
             if next_step.x < 0 or next_step.y < 0:
@@ -196,10 +194,10 @@ def find_time_saving_routes(
                 cheated_walls.add(next_step_key)
                 next_step.is_teleport_start = True
                 next_route: Route = Route.from_route(node)
-                next_route.add_point(next_step)                
+                next_route.add_point(next_step)
                 queue.append(next_route)
                 continue
-                
+
             if step_char == "E":
                 node.add_point(next_step)
                 time_saving_routes.append(node)
@@ -217,8 +215,8 @@ print()
 
 # typical_time = find_race_time(grid)
 # print(f"Race takes {typical_time} picoseconds to complete")
-time_to_save=20
+time_to_save = 100
 time_saving_routes = find_time_saving_routes(grid, start, time_to_save)
-print(f'Found {len(time_saving_routes)} routes that save at least {time_to_save} picoseconds')
-
-
+print(
+    f"Found {len(time_saving_routes)} routes that save at least {time_to_save} picoseconds"
+)
