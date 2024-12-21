@@ -55,9 +55,6 @@ class Route(object):
         if point.is_teleport_start:
             self.has_teleported = True
 
-    def has_visited(self, point: CheatPoint) -> bool:
-        return any(map(lambda x: x.x == point.x and x.y == point.y, self.points))
-
 
 grid: List[List[str]] = []
 start: Point = None
@@ -158,6 +155,8 @@ def find_time_saving_routes(
     queue: List[Route] = [root]
     increments = [Point(0, -1), Point(1, 0), Point(0, 1), Point(-1, 0)]
     time_saving_routes: List[Route] = []
+    
+    visited_nodes: Set[str] = set([str(start)])
 
     while any(queue):
         node = queue.pop(0)
@@ -166,14 +165,14 @@ def find_time_saving_routes(
 
         for increment in increments:
             next_step = node.points[-1].add(increment)
+            next_step_key = str(next_step)
             if next_step.x < 0 or next_step.y < 0:
                 continue
             if next_step.y >= len(map) or next_step.x >= len(map[next_step.y]):
                 continue
-            if node.has_visited(next_step):
+            if next_step_key in visited_nodes:
                 continue
 
-            next_step_key = str(next_step)
             if node.has_teleported and next_step_key in route_by_position:
                 cached_route = route_by_position[next_step_key]
                 if cached_route.total_time + node.total_time >= required_time:
@@ -205,6 +204,8 @@ def find_time_saving_routes(
 
             next_route: Route = Route.from_route(node)
             next_route.add_point(next_step)
+            if not node.has_teleported:
+                visited_nodes.add(next_step_key)
             queue.append(next_route)
 
     return time_saving_routes
