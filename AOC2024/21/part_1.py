@@ -1,5 +1,5 @@
 import os
-from typing import List, Set, Tuple
+from typing import Generator, List, Set, Tuple
 
 
 class Point(object):
@@ -17,14 +17,25 @@ class Point(object):
 class Route(object):
     def __init__(self, route=None, start=None):
         self.directions: List[str] = []
-        self.position = start
+        self.visited_nodes = set()
+        if start:
+            self.position = start
+            self.visited_nodes.add(str(start))
         if route:
-            self.directions = list(route.directions)
-            self.start = route.position
+            self.directions = route.directions.copy()
+            self.position = route.position
+            self.visited_nodes = route.visited_nodes.copy()
 
     def move(self, direction: str, point: Point) -> None:
         self.directions.append(direction)
         self.position = point
+        self.visited_nodes
+
+    def has_visited(self, point: Point) -> bool:
+        return str(point) in self.visited_nodes
+
+    def __str__(self) -> str:
+        return "".join(self.directions)
 
 
 codes: List[str] = []
@@ -36,12 +47,14 @@ with open(input_file, "r") as in_file:
         codes.append(line.strip())
 
 
-def get_path_to_character(
-    sub_grid: List[List[str]], start: Point, character: str
-) -> Route:
+def get_paths_to_character(
+    sub_grid: List[List[str]], start: Point, character: str, limit: int = None
+) -> Generator[Route, None, None]:
     root = Route(start=start)
     if sub_grid[start.y][start.x] == character:
-        return root
+        root.move("A", root.position)
+        yield root
+        return
     queue: List[Route] = [root]
     increments: List[Tuple[str, Point]] = [
         ("^", Point(0, -1)),
@@ -49,9 +62,12 @@ def get_path_to_character(
         ("v", Point(0, 1)),
         ("<", Point(-1, 0)),
     ]
-    visited_points: Set[str] = set()
+    returned_routes = 0
+    best_distance: int = None
     while any(queue):
         node = queue.pop(0)
+        if best_distance and len(node.directions) >= best_distance:
+            continue
         for direction, increment in increments:
             next_position = node.position.add(increment)
             if next_position.x < 0 or next_position.y < 0:
@@ -63,20 +79,22 @@ def get_path_to_character(
             if sub_grid[next_position.y][next_position.x] == "#":
                 continue
 
-            next_position_key = str(next_position)
-            if next_position_key in visited_points:
+            if node.has_visited(next_position):
                 continue
-            visited_points.add(next_position_key)
             next_node = Route(node)
             next_node.move(direction, next_position)
             if sub_grid[next_position.y][next_position.x] == character:
-                return next_node
+                next_node.move("A", next_position)
+                yield next_node
+                best_distance = len(next_node.directions) - 1
+                returned_routes += 1
+                if limit and returned_routes >= limit:
+                    return
             queue.append(next_node)
-    return None
 
 
 # given a code, returns the optimal directional sequence required to press the buttons.
-def calculate_button_sequence(code: str) -> List[str]:
+def calculate_button_sequences(code: str) -> List[Route]:
     grid: List[List[str]] = [
         ["7", "8", "9"],
         ["4", "5", "6"],
@@ -85,15 +103,21 @@ def calculate_button_sequence(code: str) -> List[str]:
     ]
     cursor_position = Point(2, 3)
 
-    sequence: List[str] = []
+    sequences: List[Route] = [Route(start=cursor_position)]
 
     for char in code:
-        path_to_char = get_path_to_character(grid, cursor_position, char)
-        sequence.extend(path_to_char.directions)
-        sequence.append("A")
-        cursor_position = path_to_char.position
+        new_sequences: List[Route] = []
+        for sequence in sequences:
+            paths = get_paths_to_character(grid, sequence.position, char)
+            for path in paths:
+                new_sequence = Route(sequence)
+                new_sequence.visited_nodes.clear()
+                new_sequence.directions.extend(path.directions)
+                new_sequence.position = path.position
+                new_sequences.append(new_sequence)
+        sequences = new_sequences
 
-    return sequence
+    return sequences
 
 
 def calculate_directional_sequence(directions: List[str]) -> List[str]:
@@ -106,15 +130,21 @@ def calculate_directional_sequence(directions: List[str]) -> List[str]:
     sequence: List[str] = []
 
     for char in directions:
-        path_to_char = get_path_to_character(grid, cursor_position, char)
+        path_to_char = list(
+            get_paths_to_character(grid, cursor_position, char, limit=1)
+        )[0]
         sequence.extend(path_to_char.directions)
-        sequence.append("A")
         cursor_position = path_to_char.position
 
     return sequence
 
 
-sequence = calculate_button_sequence("029A")
-print(sequence)
-second_order_sequence = calculate_directional_sequence(sequence)
-print(second_order_sequence)
+print("029A")
+sequences = calculate_button_sequences("029A")
+for sequence in sequences:
+    print(sequence)
+    second_order_sequence = calculate_directional_sequence(sequence.directions)
+    print("".join(second_order_sequence))
+    third_order_sequence = calculate_directional_sequence(second_order_sequence)
+    print("".join(third_order_sequence))
+    print()
