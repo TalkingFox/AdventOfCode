@@ -10,6 +10,9 @@ class Point(object):
     def add(self, other_point):
         return Point(self.x + other_point.x, self.y + other_point.y)
 
+    def equals(self, other_point) -> bool:
+        return self.x == other_point.x and self.y == other_point.y
+
     def __str__(self) -> str:
         return f"({self.x},{self.y})"
 
@@ -18,6 +21,7 @@ class Route(object):
     def __init__(self, route=None, start=None):
         self.directions: List[str] = []
         self.visited_nodes = set()
+        self.cost = 0
         if start:
             self.position = start
             self.visited_nodes.add(str(start))
@@ -25,11 +29,16 @@ class Route(object):
             self.directions = route.directions.copy()
             self.position = route.position
             self.visited_nodes = route.visited_nodes.copy()
+            self.cost = route.cost
 
     def move(self, direction: str, point: Point) -> None:
         self.directions.append(direction)
+
+        price = 1 if self.position.x != point.x or self.position.y != point.y else 0
+        self.cost += price
+
         self.position = point
-        self.visited_nodes
+        self.visited_nodes.add(point)
 
     def has_visited(self, point: Point) -> bool:
         return str(point) in self.visited_nodes
@@ -93,58 +102,78 @@ def get_paths_to_character(
             queue.append(next_node)
 
 
+def calculate_button_sequence(
+    button_map: List[List[str]], start_position: Point, code: str, limit: int = None
+) -> List[Route]:
+    cursor_position = start_position
+
+    sequences: List[Route] = [Route(start=cursor_position)]
+
+    for char in code:
+        cheapest_sequences: List[Route] = []
+        lowest_cost = None
+        for sequence in sequences:
+            paths = get_paths_to_character(button_map, sequence.position, char, limit)
+            for path in paths:
+                new_sequence = Route(sequence)
+                new_sequence.visited_nodes.clear()
+                new_sequence.directions.extend(path.directions)
+                new_sequence.position = path.position
+                new_sequence.cost += path.cost
+                if lowest_cost == None:
+                    lowest_cost = new_sequence.cost
+                if lowest_cost > new_sequence.cost:
+                    lowest_cost = new_sequence.cost
+                    cheapest_sequences = []
+                if lowest_cost == new_sequence.cost:
+                    cheapest_sequences.append(new_sequence)
+        sequences = cheapest_sequences
+
+    return cheapest_sequences
+
+
 # given a code, returns the optimal directional sequence required to press the buttons.
-def calculate_button_sequences(code: str) -> List[Route]:
+def calculate_num_button_sequences(code: str) -> List[Route]:
     grid: List[List[str]] = [
         ["7", "8", "9"],
         ["4", "5", "6"],
         ["1", "2", "3"],
         ["#", "0", "A"],
     ]
-    cursor_position = Point(2, 3)
-
-    sequences: List[Route] = [Route(start=cursor_position)]
-
-    for char in code:
-        new_sequences: List[Route] = []
-        for sequence in sequences:
-            paths = get_paths_to_character(grid, sequence.position, char)
-            for path in paths:
-                new_sequence = Route(sequence)
-                new_sequence.visited_nodes.clear()
-                new_sequence.directions.extend(path.directions)
-                new_sequence.position = path.position
-                new_sequences.append(new_sequence)
-        sequences = new_sequences
-
-    return sequences
+    start_position = Point(2, 3)
+    return calculate_button_sequence(grid, start_position, code)
 
 
-def calculate_directional_sequence(directions: List[str]) -> List[str]:
+def calculate_dir_button_sequence(
+    directions: List[str], limit: int = None
+) -> List[Route]:
     grid: List[List[str]] = [
         ["#", "^", "A"],
         ["<", "v", ">"],
     ]
-    cursor_position = Point(2, 0)
-
-    sequence: List[str] = []
-
-    for char in directions:
-        path_to_char = list(
-            get_paths_to_character(grid, cursor_position, char, limit=1)
-        )[0]
-        sequence.extend(path_to_char.directions)
-        cursor_position = path_to_char.position
-
-    return sequence
+    start_position = Point(2, 0)
+    code = "".join(directions)
+    return calculate_button_sequence(grid, start_position, code, limit=limit)
 
 
-print("029A")
-sequences = calculate_button_sequences("029A")
-for sequence in sequences:
-    print(sequence)
-    second_order_sequence = calculate_directional_sequence(sequence.directions)
-    print("".join(second_order_sequence))
-    third_order_sequence = calculate_directional_sequence(second_order_sequence)
-    print("".join(third_order_sequence))
-    print()
+sum_complexity = 0
+for code in codes:
+    num_sequences = calculate_num_button_sequences(code)
+    final_sequences: List[Route] = []
+    for num_sequence in num_sequences:
+        first_dir_sequences = calculate_dir_button_sequence(num_sequence.directions)
+        best_sequence_count = 0
+        best_sequence: Route = None
+        for first_dir_sequence in first_dir_sequences:
+            second_dir_sequences = calculate_dir_button_sequence(
+                first_dir_sequence.directions, limit=1
+            )
+            final_sequences.extend(second_dir_sequences)
+
+    cheapest_sequence = min(final_sequences, key=lambda x: x.cost)
+    print("".join(cheapest_sequence.directions))
+    numeric_code = int(code[0:3])
+    local_complexity = len(cheapest_sequence.directions) * numeric_code
+    sum_complexity += local_complexity
+
+print(f"The sum complexity is {sum_complexity}")
