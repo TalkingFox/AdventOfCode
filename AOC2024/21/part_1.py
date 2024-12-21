@@ -40,6 +40,8 @@ def get_path_to_character(
     sub_grid: List[List[str]], start: Point, character: str
 ) -> Route:
     root = Route(start=start)
+    if sub_grid[start.y][start.x] == character:
+        return root
     queue: List[Route] = [root]
     increments: List[Tuple[str, Point]] = [
         ("^", Point(0, -1)),
@@ -94,5 +96,25 @@ def calculate_button_sequence(code: str) -> List[str]:
     return sequence
 
 
+def calculate_directional_sequence(directions: List[str]) -> List[str]:
+    grid: List[List[str]] = [
+        ["#", "^", "A"],
+        ["<", "v", ">"],
+    ]
+    cursor_position = Point(2, 0)
+
+    sequence: List[str] = []
+
+    for char in directions:
+        path_to_char = get_path_to_character(grid, cursor_position, char)
+        sequence.extend(path_to_char.directions)
+        sequence.append("A")
+        cursor_position = path_to_char.position
+
+    return sequence
+
+
 sequence = calculate_button_sequence("029A")
 print(sequence)
+second_order_sequence = calculate_directional_sequence(sequence)
+print(second_order_sequence)
