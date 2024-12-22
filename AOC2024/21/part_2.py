@@ -56,10 +56,11 @@ def move_to_character(route: Route, target: Point, panic: Point) -> None:
         increment_y_first = True
     else:
         target_difference = route.position.subtract(target)
-        if target_difference.y < 0 and target_difference.x < 0:
-            increment_y_first = True
-        elif target_difference.y > 0 and target_difference.x < 0:
-            increment_y_first = True
+        if abs(target_difference.x) == 1 and abs(target_difference.y) == 1:
+            if target_difference.y < 0 and target_difference.x < 0:
+                increment_y_first = True
+            elif target_difference.y > 0 and target_difference.x < 0:
+                increment_y_first = True
 
     def increment_x():
         difference_x = route.position.x - target.x
@@ -127,17 +128,42 @@ def calculate_num_button_sequences(code: str) -> List[Route]:
     return route
 
 
-def calculate_dir_button_sequence(directions: List[str]) -> Route:
+cache: Dict[str, Route] = {}
+
+
+def calculate_dir_button_sequence(
+    directions: List[str], depth: int, max_depth: int, start: Point = Point(2, 0)
+) -> Route:
     # grid: List[List[str]] = [
     #     ["#", "^", "A"],
     #     ["<", "v", ">"],
     # ]
-    start_position = Point(2, 0)
-    route = Route(start=start_position)
+
+    route = Route(start=start)
+    if depth == max_depth:
+        early_route = Route(route)
+        early_route.directions.extend(directions)
+        return early_route
+
     panic = direction_index_by_character["#"]
+    sub_route_position = route.position
     for char in directions:
+        cache_key = f"{char}@{sub_route_position}@{depth}"
+        if cache_key in cache:
+            cache_route = cache[cache_key]
+            route.directions.extend(cache_route.directions)
+            route.position = cache_route.position
+            continue
         target_point = direction_index_by_character[char]
-        move_to_character(route, target_point, panic)
+        subroute = Route(start=sub_route_position)
+        move_to_character(subroute, target_point, panic)
+        sub_route_position = subroute.position
+        next_level = calculate_dir_button_sequence(
+            subroute.directions, depth + 1, max_depth, start=route.position
+        )
+        cache[cache_key] = Route(next_level)
+        route.directions.extend(next_level.directions)
+        route.position = next_level.position
     return route
 
 
@@ -146,11 +172,11 @@ chain_length = 2
 for code in codes:
     button_route = calculate_num_button_sequences(code)
     print(button_route)
-    chain_route = button_route
-    for i in range(chain_length):
-        chain_route = calculate_dir_button_sequence(chain_route.directions)
-        # print(f'{i}@{"".join(chain_route.directions)}')
-        print(i)
+    chain_route = calculate_dir_button_sequence(
+        button_route.directions, 0, max_depth=chain_length
+    )
+    print(f"{chain_route}")
+    print()
     numeric_code = int(code[0:3])
     local_complexity = len(chain_route.directions) * numeric_code
     sum_complexity += local_complexity
