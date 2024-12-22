@@ -54,13 +54,19 @@ def move_to_character(route: Route, target: Point, panic: Point) -> None:
     increment_y_first = False
     if route.position.y == panic.y and target.x == panic.x:
         increment_y_first = True
+    elif route.position.x == panic.x and target.y == panic.y:
+        increment_y_first = False
     else:
         target_difference = route.position.subtract(target)
-        if abs(target_difference.x) == 1 and abs(target_difference.y) == 1:
+        if abs(target_difference.x) > 0 and abs(target_difference.y) > 0:
+            # apply directional preferences
+            # down-right
             if target_difference.y < 0 and target_difference.x < 0:
                 increment_y_first = True
+            # up-right
             elif target_difference.y > 0 and target_difference.x < 0:
                 increment_y_first = True
+            # otherwise, favor x increments first
 
     def increment_x():
         difference_x = route.position.x - target.x
@@ -143,6 +149,7 @@ def calculate_dir_button_sequence(
     if depth == max_depth:
         early_route = Route(route)
         early_route.directions.extend(directions)
+        early_route.position = route.position
         return early_route
 
     panic = direction_index_by_character["#"]
