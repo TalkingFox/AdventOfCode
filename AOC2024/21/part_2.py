@@ -20,28 +20,15 @@ class Point(object):
 class Route(object):
     def __init__(self, route=None, start=None):
         self.directions: List[str] = []
-        self.visited_nodes = set()
-        self.cost = 0
         if start:
             self.position = start
-            self.visited_nodes.add(str(start))
         if route:
             self.directions = route.directions.copy()
             self.position = route.position
-            self.visited_nodes = route.visited_nodes.copy()
-            self.cost = route.cost
 
     def move(self, direction: str, point: Point) -> None:
         self.directions.append(direction)
-
-        price = 1 if self.position.x != point.x or self.position.y != point.y else 0
-        self.cost += price
-
         self.position = point
-        self.visited_nodes.add(point)
-
-    def has_visited(self, point: Point) -> bool:
-        return str(point) in self.visited_nodes
 
     def __str__(self) -> str:
         return "".join(self.directions)
@@ -146,14 +133,15 @@ def calculate_dir_button_sequence(directions: List[str]) -> Route:
 
 
 sum_complexity = 0
-chain_length = 2
+chain_length = 25
 for code in codes:
     button_route = calculate_num_button_sequences(code)
     print(button_route)
     chain_route = button_route
     for i in range(chain_length):
         chain_route = calculate_dir_button_sequence(chain_route.directions)
-        print(f'{i}@{"".join(chain_route.directions)}')
+        # print(f'{i}@{"".join(chain_route.directions)}')
+        print(i)
     numeric_code = int(code[0:3])
     local_complexity = len(chain_route.directions) * numeric_code
     sum_complexity += local_complexity
