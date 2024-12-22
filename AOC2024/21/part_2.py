@@ -10,6 +10,9 @@ class Point(object):
     def add(self, other_point):
         return Point(self.x + other_point.x, self.y + other_point.y)
 
+    def subtract(self, other_point):
+        return Point(self.x - other_point.x, self.y - other_point.y)
+
     def equals(self, other_point) -> bool:
         return self.x == other_point.x and self.y == other_point.y
 
@@ -51,6 +54,12 @@ def move_to_character(route: Route, target: Point, panic: Point) -> None:
     increment_y_first = False
     if route.position.y == panic.y and target.x == panic.x:
         increment_y_first = True
+    else:
+        target_difference = route.position.subtract(target)
+        if target_difference.y < 0 and target_difference.x < 0:
+            increment_y_first = True
+        elif target_difference.y > 0 and target_difference.x < 0:
+            increment_y_first = True
 
     def increment_x():
         difference_x = route.position.x - target.x
@@ -133,7 +142,7 @@ def calculate_dir_button_sequence(directions: List[str]) -> Route:
 
 
 sum_complexity = 0
-chain_length = 25
+chain_length = 2
 for code in codes:
     button_route = calculate_num_button_sequences(code)
     print(button_route)
