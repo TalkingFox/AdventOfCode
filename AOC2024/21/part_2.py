@@ -28,6 +28,9 @@ class Route(object):
         if route:
             self.directions = route.directions.copy()
             self.position = route.position
+            self.route_length = route.route_length
+        else:
+            self.route_length = len(self.directions)
 
     def move(self, direction: str, point: Point) -> None:
         self.directions.append(direction)
@@ -147,7 +150,8 @@ class CacheEntry(object):
         self.char = char
         self.subroute_position = subroute_position
         self.next_level_position = next_level_position
-        self.route = route
+        self.route = Route(route)
+        # self.route.directions.clear()
 
     @staticmethod
     def get_key(
@@ -172,7 +176,8 @@ def calculate_dir_button_sequence(
     # at max depth, don't expand the directions
     # return what you have
     if depth == max_depth:
-        route.directions.extend(directions)
+        # route.directions.extend(directions)
+        route.route_length += len(directions)
         return route
 
     panic = direction_index_by_character["#"]
@@ -184,7 +189,8 @@ def calculate_dir_button_sequence(
         )
         if cache_key in cache:
             entry: CacheEntry = cache[cache_key]
-            route.directions.extend(entry.route.directions)
+            # route.directions.extend(entry.route.directions)
+            route.route_length += entry.route.route_length
             route.position = entry.route.position
             next_level_position = entry.next_level_position
             sub_route_position = entry.subroute_position
@@ -202,24 +208,25 @@ def calculate_dir_button_sequence(
             depth, char, sub_route_position, next_level.position, Route(next_level)
         )
         cache[cache_key] = entry
-        route.directions.extend(next_level.directions)
+        # route.directions.extend(next_level.directions)
+        route.route_length += next_level.route_length
         route.position = next_level.position
         next_level_position = next_level.position
     return route
 
 
 sum_complexity = 0
-chain_length = 2
+chain_length = 25
 for code in codes:
     button_route = calculate_num_button_sequences(code)
     print(button_route)
     chain_route = calculate_dir_button_sequence(
         button_route.directions, 0, max_depth=chain_length
     )
-    print(f"{chain_route}")
-    print()
+    # print(f"{chain_route.route_length}")
+    # print(len(chain_route.directions))
     numeric_code = int(code[0:3])
-    local_complexity = len(chain_route.directions) * numeric_code
+    local_complexity = chain_route.route_length * numeric_code
     sum_complexity += local_complexity
 
 
