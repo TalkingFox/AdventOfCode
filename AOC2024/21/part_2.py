@@ -134,7 +134,29 @@ def calculate_num_button_sequences(code: str) -> List[Route]:
     return route
 
 
-cache: Dict[str, Route] = {}
+class CacheEntry(object):
+    def __init__(
+        self,
+        depth: int,
+        char: str,
+        subroute_position: Point,
+        next_level_position: Point,
+        route: Route,
+    ):
+        self.depth = depth
+        self.char = char
+        self.subroute_position = subroute_position
+        self.next_level_position = next_level_position
+        self.route = route
+
+    @staticmethod
+    def get_key(
+        depth: int, char: str, subroute_position: Point, next_level_position: Point
+    ) -> str:
+        return f"@{depth}&{char}&s{subroute_position}&n{next_level_position}"
+
+
+cache: Dict[str, CacheEntry] = {}
 
 
 def calculate_dir_button_sequence(
@@ -146,31 +168,43 @@ def calculate_dir_button_sequence(
     # ]
 
     route = Route(start=start)
+
+    # at max depth, don't expand the directions
+    # return what you have
     if depth == max_depth:
-        early_route = Route(route)
-        early_route.directions.extend(directions)
-        early_route.position = route.position
-        return early_route
+        route.directions.extend(directions)
+        return route
 
     panic = direction_index_by_character["#"]
-    sub_route_position = route.position
+    sub_route_position = Point(2, 0)
+    next_level_position = Point(2, 0)
     for char in directions:
-        cache_key = f"{char}@{sub_route_position}@{depth}"
+        cache_key = CacheEntry.get_key(
+            depth, char, sub_route_position, next_level_position
+        )
         if cache_key in cache:
-            cache_route = cache[cache_key]
-            route.directions.extend(cache_route.directions)
-            route.position = cache_route.position
+            entry: CacheEntry = cache[cache_key]
+            route.directions.extend(entry.route.directions)
+            route.position = entry.route.position
+            next_level_position = entry.next_level_position
+            sub_route_position = entry.subroute_position
             continue
         target_point = direction_index_by_character[char]
         subroute = Route(start=sub_route_position)
         move_to_character(subroute, target_point, panic)
         sub_route_position = subroute.position
+
         next_level = calculate_dir_button_sequence(
             subroute.directions, depth + 1, max_depth, start=route.position
         )
-        cache[cache_key] = Route(next_level)
+
+        entry: CacheEntry = CacheEntry(
+            depth, char, sub_route_position, next_level.position, Route(next_level)
+        )
+        cache[cache_key] = entry
         route.directions.extend(next_level.directions)
         route.position = next_level.position
+        next_level_position = next_level.position
     return route
 
 
