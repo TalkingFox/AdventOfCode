@@ -44,6 +44,7 @@ def generate_price_sequences(secret: int, iterations: int) -> Dict[str, int]:
         last_price = price
     return prices_by_sequence
 
+
 starting_secrets: List[int] = []
 input_path = os.path.join(os.path.dirname(__file__), "input.txt")
 with open(input_path, "r") as in_file:
@@ -55,23 +56,26 @@ with open(input_path, "r") as in_file:
 
 
 total_sequences: List[str] = []
-price_sequences: List[Dict[str,int]] = []
-for starting_secret in starting_secrets:
+price_sequences: List[Dict[str, int]] = []
+print("Calculating price sequences...")
+for index, starting_secret in enumerate(starting_secrets):
+    print(f"Secret {index + 1}", end="\r")
     sequence = generate_price_sequences(starting_secret, 2000)
     price_sequences.append(sequence)
     total_sequences.extend(list(sequence.keys()))
 
-
+print(f"Comparing price sequences. Total Sequences: {len(total_sequences)}")
 best_sequence: str = None
 best_price: int = 0
-for sequence in total_sequences:
+for index, sequence in enumerate(total_sequences):
+    print(f"Sequence {index + 1}", end='\r')
     price = 0
     for price_sequence in price_sequences:
         if sequence in price_sequence:
             price += price_sequence[sequence]
     if price > best_price:
-        best_price =  price
+        best_price = price
         best_sequence = sequence
-        
-print(f'{best_sequence} is the best sequence.')
-print(f'It provides {best_price} bananas.')
+
+print(f"{best_sequence} is the best sequence.")
+print(f"It provides {best_price} bananas.")
