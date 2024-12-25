@@ -104,40 +104,72 @@ def evaluate_operations(
     return get_numbers(z_wires)
 
 
-x_wires = list(filter(lambda x: x.id.startswith("x"), wires.values()))
-x_wires = list(reversed(sorted(x_wires, key=lambda x: x.id)))
+num_x_wires = len(list(filter(lambda x: x.id.startswith("x"), wires.values())))
+# Useful for visualizing the adder circuits and pattern requisites.
+# https://en.wikipedia.org/wiki/Adder_(electronics)#
+# find broken gates by applying the following rules
+# 1. If the output of a gate is z, then that operation must be a XOR unless is it the final bit, which will be a carry bit AND operation
+# 2. If the output of a gate is not z and the inputs are not x and y, then it cannot be XOR.
+#       In other words, a XOR operation only occurs when the input is (x,y) or when the output is z.
+#       This is because XOR is a summing operation and a sum operations only occur against the source inputs (x,y) and the sum and carry bits (when writing the output).
+# 3. Any XOR gate with inputs (x,y) have their output (the sum bit) as one of the inputs to another XOR gate.
+#   This is because the sum bit is always XOR'd with the carry bit.
+#   This rule does not apply to x00 and y00 because their result is written directly to a z wire.
+# 4. Any AND gate must its output correspond to an OR gate (so that carried bits may be counted)
+broken_gates: List[Operation] = []
+xy_xors_by_output: Dict[str, Operation] = {}
+and_gates_by_output: Dict[str, Operation] = {}
 
-y_wires = filter(lambda y: y.id.startswith("y"), wires.values())
-y_wires = sorted(y_wires, key=lambda y: y.id)
-set_number(y_wires, format(0, f"0{len(y_wires)}b"))
+for operation in source_operations:
+    if (
+        operation.output_id.startswith("z")
+        and operation.operator != "XOR"
+        and operation.output_id != f"z{num_x_wires}"
+    ):
+        broken_gates.append(operation)
+        continue
 
-exit()
-problematic_x_values = []
-for i in range(-1, len(x_wires)):
-    string_buffer: List[str] = []
-    power_of_2 = 0 if i == -1 else pow(2, i)
-    set_number(x_wires, format(power_of_2, f"0{len(x_wires)}b"))
-    (x_binary, x_decimal) = get_numbers(reversed(x_wires))
-    string_buffer.append(f"X Digit is {x_binary} (base 2) {x_decimal} (base 10)")
+    if (
+        operation.operator == "XOR"
+        and not operation.output_id.startswith("z")
+        and (
+            operation.source_id[0] not in ["x", "y"]
+            and operation.target_id[0] not in ["x", "y"]
+        )
+    ):
+        broken_gates.append(operation)
+        continue
 
-    (y_binary, y_decimal) = get_numbers(y_wires)
-    string_buffer.append(f"Y Digit is {y_binary} (base 2) {y_decimal} (base 10)")
-    expected_sum = x_decimal + y_decimal
-    string_buffer.append(
-        f"The sum should therefore be {format(expected_sum, f'0{len(x_wires)+1}b')} (base 2) {expected_sum} (base 10)"
-    )
-    (z_binary, z_decimal) = evaluate_operations(
-        operations=source_operations, wires=wires
-    )
-    string_buffer.append(f"Found sum of {z_binary} (base 2) {z_decimal} (base 10)")
-    if z_decimal != expected_sum:
-        problematic_x_values.append(power_of_2)
-        string_buffer.append(f"This implies a problem at x-value {power_of_2}")
-        print("\n".join(string_buffer))
-        print()
+    if operation.source_id not in ["x00", "y00"] and operation.target_id not in [
+        "x00",
+        "y00",
+    ]:
+        if (
+            operation.operator == "XOR"
+            and operation.target_id[0] in ["x", "y"]
+            and operation.source_id[0] in ["x", "y"]
+        ):
+            xy_xors_by_output[operation.output_id] = operation
 
-# swapped_wires: Set[str] = set()
-# for i, alpha in enumerate(source_operations):
-#     for j, beta in enumerate(source_operations[i+1:]):
-#         (alpha.output_id, beta.output_id) = (beta.output_id, alpha.output_id)
-        
+        if operation.operator == "AND":
+            and_gates_by_output[operation.output_id] = operation
+
+for operation in source_operations:
+    if operation.operator == "XOR":
+        if operation.source_id in xy_xors_by_output:
+            del xy_xors_by_output[operation.source_id]
+        if operation.target_id in xy_xors_by_output:
+            del xy_xors_by_output[operation.target_id]
+
+    if operation.operator == "OR":
+        if operation.source_id in and_gates_by_output:
+            del and_gates_by_output[operation.source_id]
+        if operation.target_id in and_gates_by_output:
+            del and_gates_by_output[operation.target_id]
+
+broken_gates.extend(xy_xors_by_output.values())
+broken_gates.extend(and_gates_by_output.values())
+
+print(f"Found {len(broken_gates)} broken gates.")
+outputs = ",".join(sorted(map(lambda x: x.output_id, broken_gates)))
+print(outputs)
