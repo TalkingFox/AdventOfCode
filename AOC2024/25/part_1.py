@@ -77,14 +77,6 @@ with open(input_path, "r") as in_file:
     if len(active_grid) > 0:
         parse_grid(active_grid)
 
-print("Locks!")
-for lock in locks:
-    print(lock)
-
-print("Keys!")
-for key in keys:
-    print(key)
-
 keys_and_locks: List[Tuple[Key, Lock]] = []
 for key in keys:
     for lock in locks:
