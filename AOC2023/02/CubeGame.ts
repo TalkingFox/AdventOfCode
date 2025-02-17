@@ -25,6 +25,20 @@ export class CubeGame {
         );
     }
 
+    public findMinimumCubeBag(): CubeBag {
+        const minimalBag: CubeBag = {
+            blues: 0,
+            greens: 0,
+            reds: 0
+        };
+        this.draws.forEach((draw) => {
+            minimalBag.blues = Math.max(draw.blueCount, minimalBag.blues);
+            minimalBag.greens = Math.max(draw.greenCount, minimalBag.greens);
+            minimalBag.reds = Math.max(draw.redCount, minimalBag.reds);
+        });
+        return minimalBag;
+    }
+
     public toString(): string {
         const drawStrings: string[] = [];
         this.draws.forEach((draw) => {
