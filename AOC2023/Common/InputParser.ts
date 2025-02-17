@@ -1,6 +1,7 @@
 import * as fs_promise from 'fs/promises';
 import * as fs from 'fs';
 import * as readline from 'readline/promises';
+import { Grid2D } from './Grid2d';
 
 export async function readInputLines(filepath: string): Promise<string[]> {
     const contents = await fs_promise.readFile(filepath, 'utf-8');
@@ -26,4 +27,10 @@ export async function* readInputLinesIter(filepath: string): AsyncGenerator<stri
     for await (const line of readInterface) {
         yield line;
     }
+}
+
+export async function readInputAsGrid(filepath: string): Promise<Grid2D> {
+    const lines = await readInputLines(filepath);
+    const grid = new Grid2D(lines);
+    return grid;
 }
