@@ -1,0 +1,16 @@
+{
+  "name": "aoc2023",
+  "version": "1.0.0",
+  "description": "Advent of Code challenges for 2023. Solved using Typescript.",
+  "scripts": {
+    "01-1": "ts-node 01/Part1.ts",
+    "01-2": "ts-node 01/Part2.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}
