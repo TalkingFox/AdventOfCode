@@ -1,7 +1,9 @@
-import * as fs from 'fs/promises';
+import * as fs_promise from 'fs/promises';
+import * as fs from 'fs';
+import * as readline from 'readline/promises';
 
 export async function readInputLines(filepath: string): Promise<string[]> {
-    const contents = await fs.readFile(filepath, 'utf-8');
+    const contents = await fs_promise.readFile(filepath, 'utf-8');
     const lines = contents.split(/\r?\n/);
     if (lines.length == 0) {
         return lines;
@@ -12,4 +14,16 @@ export async function readInputLines(filepath: string): Promise<string[]> {
     }
     return lines;
 
+}
+
+export async function* readInputLinesIter(filepath: string): AsyncGenerator<string> {
+    const fileStream = fs.createReadStream(filepath);
+    const readInterface = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+    });
+
+    for await (const line of readInterface) {
+        yield line;
+    }
 }

@@ -4,7 +4,8 @@
   "description": "Advent of Code challenges for 2023. Solved using Typescript.",
   "scripts": {
     "01-1": "ts-node 01/Part1.ts",
-    "01-2": "ts-node 01/Part2.ts"
+    "01-2": "ts-node 01/Part2.ts",
+    "02-1": "ts-node 02/Part1.ts"
   },
   "author": "",
   "license": "ISC",
