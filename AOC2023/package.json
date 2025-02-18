@@ -7,7 +7,8 @@
     "01-2": "ts-node 01/Part2.ts",
     "02-1": "ts-node 02/Part1.ts",
     "02-2": "ts-node 02/Part2.ts",
-    "03-1": "ts-node 03/Part1.ts"
+    "03-1": "ts-node 03/Part1.ts",
+    "03-2": "ts-node 03/Part2.ts"
   },
   "author": "",
   "license": "ISC",
